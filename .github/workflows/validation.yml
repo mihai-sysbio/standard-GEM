@@ -10,9 +10,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      matrix:
-        gem-repository: ${{ steps.api-search.outputs.list }}
-        standard-version: ${{ steps.standard-version.outputs.list }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -20,10 +18,8 @@ jobs:
       uses: actions/checkout@v1
       with:
         fetch-depth: 1
-    - id: api-search
-      run: echo "::set-output name=list$(python -c "import gh_api; gh_api.standard_repos()")
-    - id: standard-versions
-      run: echo "::set-output name=list$(python -c "import gh_api; gh_api.standard_versions()")
+    - if: set-matrix
+      run echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
 
   repo-validation:
     runs-on: ubuntu-latest
@@ -34,16 +30,16 @@ jobs:
     steps:
     - id: fetch-files
       run: |
-        curl https://raw.githubusercontent.com/SysBioChalmers/${{ matrix.gem-repository }}/develop/.standard-GEM.md -o repo-standard.md
-        curl https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/${{ matrix.standard-version }}/.standard-GEM.md -o raw-standard.md
+        curl https://raw.githubusercontent.com/SysBioChalmers/${{ matrix.gem  }}/develop/.standard-GEM.md -o repo-standard.md
+        curl https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/${{ matrix.version }}/.standard-GEM.md -o raw-standard.md
     - id: compare
       shell: bash
       run: |
         changes=`diff -ed raw-standard.md repo-standard.md | grep "^\D" | grep "^[^\.-]" | wc -l`
         if (( $changes > 0 )); then
-            echo "${{ matrix.gem-repository}} does not follow standard ${{ matrix.standard-version}}"
+            echo "${{ matrix.gem }} does not follow standard ${{ matrix.version }}"
         else 
-            echo "${{ matrix.gem-repository}} most likely follows standard ${{ matrix.standard-version}}"
+            echo "${{ matrix.gem }} most likely follows standard ${{ matrix.version }}"
             # memote run -a "--tb no" path/to/model.xml
         fi
 
