@@ -21,13 +21,15 @@ jobs:
     - name: pip
       run: pip install requests
     - name: set-matrix
-      run: echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
+      run: |
+        echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
+        echo "::debug::toJson($(python -c 'import gh_api; gh_api.matrix()'))"
 
   validation:
     runs-on: ubuntu-latest
     
     strategy:
-      matrix: ${{fromJson(needs.setup.outputs.matrix)}}
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     
     steps:
     - id: fetch-files

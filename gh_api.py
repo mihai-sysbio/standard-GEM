@@ -34,4 +34,4 @@ def matrix():
         for v in standard_versions():
             m.append({ 'gem': g, 'version': v })
     matrix_json = {"include": m }
-    print(matrix_json)
+    print(json.dumps(matrix_json))
