@@ -1,7 +1,9 @@
 name: validation
 
 on:
-  push: [ automated-validation ]
+  push:
+    branches:
+      - automated-validation
 
 jobs:
 
