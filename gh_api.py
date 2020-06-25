@@ -11,8 +11,9 @@ def gem_repositories():
     json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"topic:standard-GEM\"\"\", first: 50) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
     r = requests.post(url=api_endpoint, json=json_request, headers=header_auth)
     json_data = json.loads(r.text)['data']['search']['repos']
-    gem_repositories = list(map(lambda x: x['repo']['nameWithOwner'], json_data))
-    return gem_repositories
+    gem_repositories = map(lambda x: x['repo']['nameWithOwner'], json_data)
+    filtered_repositories = filter(lambda x: 'standard-GEM' not in x, gem_repositories)
+    return filtered_repositories
 
 def releases(nameWithOwner):
     owner, repo =  nameWithOwner.split('/')

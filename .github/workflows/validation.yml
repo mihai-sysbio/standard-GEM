@@ -18,6 +18,8 @@ jobs:
       uses: actions/checkout@v1
       with:
         fetch-depth: 1
+    - name: pip
+      run: pip install requests
     - name: set-matrix
       run: echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
 
