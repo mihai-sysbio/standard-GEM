@@ -1,0 +1,47 @@
+name: validation
+
+on:
+  push: [ automated-validation ]
+
+jobs:
+
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix:
+        gem-repository: ${{ steps.api-search.outputs.list }}
+        standard-version: ${{ steps.standard-version.outputs.list }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+    - id: api-search
+      run: echo "::set-output name=list$(python -c "import gh_api; gh_api.standard_repos()")
+    - id: standard-versions
+      run: echo "::set-output name=list$(python -c "import gh_api; gh_api.standard_versions()")
+
+  repo-validation:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix: ${{fromJson(needs.setup.outputs.matrix)}}
+    
+    steps:
+    - id: fetch-files
+      run: |
+        curl https://raw.githubusercontent.com/SysBioChalmers/${{ matrix.gem-repository }}/develop/.standard-GEM.md -o repo-standard.md
+        curl https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/${{ matrix.standard-version }}/.standard-GEM.md -o raw-standard.md
+    - id: compare
+      shell: bash
+      run: |
+        changes=`diff -ed raw-standard.md repo-standard.md | grep "^\D" | grep "^[^\.-]" | wc -l`
+        if (( $changes > 0 )); then
+            echo "${{ matrix.gem-repository}} does not follow standard ${{ matrix.standard-version}}"
+        else 
+            echo "${{ matrix.gem-repository}} most likely follows standard ${{ matrix.standard-version}}"
+            # memote run -a "--tb no" path/to/model.xml
+        fi
+
