@@ -11,6 +11,12 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+    - name: pip
+      run: pip install requests
     - id: set-matrix
       run: echo "::set-output name=matrix::{\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
   
@@ -20,4 +26,4 @@ jobs:
     strategy:
       matrix: ${{fromJson(needs.setup.outputs.matrix)}}
     steps:
-    - run: build
+    - run: echo "success"
