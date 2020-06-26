@@ -20,14 +20,26 @@ jobs:
     - name: pip
       run: pip install requests
     - id: set-matrix
-      run: |
-        echo "::set-output name=matrix::{\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
-        echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
+      run: echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
   
   validation:
     needs: setup
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix: ${{fromJson(needs.setup.outputs.matrix)}}
     steps:
-    - run: echo "success"
+    - id: fetch-files
+      run: |
+        curl https://raw.githubusercontent.com/${{ matrix.gem  }}/standardizeRepo/.standard-GEM.md -o repo-standard.md
+        curl https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/${{ matrix.version }}/.standard-GEM.md -o raw-standard.md
+    - id: compare
+      run: |
+        changes=`diff -ed raw-standard.md repo-standard.md | grep "^\D" | grep "^[^\.-]" | wc -l`
+        if (( $changes > 0 )); then
+            echo "${{ matrix.gem }} does not follow standard ${{ matrix.version }}"
+        else 
+            echo "${{ matrix.gem }} most likely follows standard ${{ matrix.version }}"
+            # memote run -a "--tb no" path/to/model.xml
+        fi
