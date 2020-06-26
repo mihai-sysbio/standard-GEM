@@ -23,8 +23,7 @@ jobs:
     - name: set-matrix
       run: |
         python -c 'import gh_api; gh_api.matrix()'
-        echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
-        echo "::debug::toJson($(python -c 'import gh_api; gh_api.matrix()'))"
+        echo "::set-output name=matrix::{\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
 
   validation:
     runs-on: ubuntu-latest
