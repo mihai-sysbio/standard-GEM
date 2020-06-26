@@ -6,44 +6,18 @@ on:
       - automated-validation
 
 jobs:
-
   setup:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}}
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v1
-      with:
-        fetch-depth: 1
-    - name: pip
-      run: pip install requests
-    - name: set-matrix
-      run: |
-        python -c 'import gh_api; gh_api.matrix()'
-        echo "::set-output name=matrix::{\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
-
+    - id: set-matrix
+      run: echo "::set-output name=matrix::{\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
+  
   validation:
+    needs: setup
     runs-on: ubuntu-latest
-    
     strategy:
-      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
-    
+      matrix: ${{fromJson(needs.setup.outputs.matrix)}}
     steps:
-    - id: fetch-files
-      run: |
-        curl https://raw.githubusercontent.com/SysBioChalmers/${{ matrix.gem  }}/develop/.standard-GEM.md -o repo-standard.md
-        curl https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/${{ matrix.version }}/.standard-GEM.md -o raw-standard.md
-    - id: compare
-      shell: bash
-      run: |
-        changes=`diff -ed raw-standard.md repo-standard.md | grep "^\D" | grep "^[^\.-]" | wc -l`
-        if (( $changes > 0 )); then
-            echo "${{ matrix.gem }} does not follow standard ${{ matrix.version }}"
-        else 
-            echo "${{ matrix.gem }} most likely follows standard ${{ matrix.version }}"
-            # memote run -a "--tb no" path/to/model.xml
-        fi
-
+    - run: build
