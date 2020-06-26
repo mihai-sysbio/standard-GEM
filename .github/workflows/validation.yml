@@ -22,6 +22,7 @@ jobs:
       run: pip install requests
     - name: set-matrix
       run: |
+        python -c 'import gh_api; gh_api.matrix()'
         echo "::set-output name=matrix::$(python -c 'import gh_api; gh_api.matrix()')"
         echo "::debug::toJson($(python -c 'import gh_api; gh_api.matrix()'))"
 
