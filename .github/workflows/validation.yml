@@ -38,8 +38,8 @@ jobs:
       run: |
         changes=`diff -ed raw-standard.md repo-standard.md | grep "^\D" | grep "^[^\.-]" | wc -l`
         if (( $changes > 0 )); then
-            echo "${{ matrix.gem }} does not follow standard ${{ matrix.version }}"
+            echo "${{ matrix.gem }} does not follow standard-GEM version ${{ matrix.version }}"
         else 
-            echo "${{ matrix.gem }} most likely follows standard ${{ matrix.version }}"
+            echo "${{ matrix.gem }} most likely follows standard-GEM version ${{ matrix.version }}"
             # memote run -a "--tb no" path/to/model.xml
         fi

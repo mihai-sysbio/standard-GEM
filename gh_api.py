@@ -1,10 +1,10 @@
 import requests
 import json
-import os
-import itertools
+from os import environ
+from difflib import context_diff
 
 api_endpoint = 'https://api.github.com/graphql'
-api_token = os.environ['GH_TOKEN']
+api_token = environ['GH_TOKEN']
 header_auth = {'Authorization': 'token %s' % api_token}
 
 def gem_repositories():
@@ -35,3 +35,13 @@ def matrix():
             m.append({ 'gem': g, 'version': v })
     matrix_json = {"include": m }
     print(json.dumps(matrix_json))
+
+def valid():
+    repo_standard = requests.get('https://raw.githubusercontent.com/{}/standardizeRepo/.standard-GEM.md'.format('SysBioChalmers/Human-GEM'))
+    if repo_standard.status_code ==  404:
+        print('gem is missing standard file')
+    repo_standard = repo_standard.text
+    raw_standard = requests.get('https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/{}/.standard-GEM.md'.format('develop')).text
+    print(raw_standard)
+    for line in context_diff(repo_standard, raw_standard):
+        print(line)
