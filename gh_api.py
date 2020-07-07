@@ -1,13 +1,17 @@
 import requests
 import json
 from os import environ
+import cobra
+import yamllint
+from yamllint.config import YamlLintConfig
 
 api_endpoint = 'https://api.github.com/graphql'
 api_token = environ['GH_TOKEN']
 header_auth = {'Authorization': 'token %s' % api_token}
+model_filename = 'model.yml'
 
 def gem_repositories():
-    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"topic:standard-GEM\"\"\", first: 50) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
+    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"topic:standard-GEM\"\"\", first: 100) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
     r = requests.post(url=api_endpoint, json=json_request, headers=header_auth)
     json_data = json.loads(r.text)['data']['search']['repos']
     gem_repositories = map(lambda x: x['repo']['nameWithOwner'], json_data)
@@ -22,18 +26,11 @@ def releases(nameWithOwner):
     release_tags = list(map(lambda x: x['node']['tagName'], json_data))
     if not release_tags:
         return []
-    return release_tags
-
-def standard_versions():
-    return releases('MetabolicAtlas/standard-GEM') + ['develop']
+    return release_tags + ['develop']
 
 def matrix():
-    m = []
-    for g in gem_repositories():
-        for v in standard_versions():
-            m.append({ 'gem': g, 'version': v })
-    matrix_json = {"include": m }
-    print(json.dumps(matrix_json))
+    m = list(map(lambda g: { 'gem': g }, gem_repositories()))
+    print(json.dumps({"include": m }))
 
 def gem_follows_standard(nameWithOwner, release, version):
     repo_standard = requests.get('https://raw.githubusercontent.com/{}/{}/.standard-GEM.md'.format(nameWithOwner, release))
@@ -45,44 +42,43 @@ def gem_follows_standard(nameWithOwner, release, version):
     the_diff = difflib.ndiff(repo_standard, raw_standard)
     return True
 
-def validate(nameWithOwner, version):
-    model_filename = 'model.yml'
+def validate(nameWithOwner):
+    model = nameWithOwner.split('/')[1]
     data = {}
     data[nameWithOwner] = []
-    for release in releases(nameWithOwner):
+    for model_release in releases(nameWithOwner):
         release_data = {}
-        is_standard = gem_follows_standard(nameWithOwner, release, version)
-        release_data['standard-GEM'] = { version : is_standard }
-        if is_standard:
-            model = nameWithOwner.split('/')[1]
-            response = requests.get('https://raw.githubusercontent.com/{}/{}/model/{}.yml'.format(nameWithOwner, release, model))
-            with open(model_filename, 'w') as file:
-                file.write(response.text)
-            print('Validating YAML with yamllint')
-            # yamllint
-            is_valid_yaml = False
-            try:
-                import yamllint
-                from yamllint.config import YamlLintConfig
-                conf = YamlLintConfig('{extends: default, rules: {line-length: disable}}')
-                with open(model_filename, 'r') as file:
-                    gen = yamllint.linter.run(file, conf)
-                    print(list(gen))
-                is_valid_yaml = len(list(gen)) == 0
-            except Exception as e:
-                print(e)
-            finally:
-                release_data['yamllint'] = { yamllint.__version__ : is_valid_yaml }
-            # cobrapy import
-            print('Trying to load yml with cobrapy')
-            is_valid_cobrapy = False
-            try:
-                import cobra
-                cobra.io.load_yaml_model(model_filename)
-                is_valid_cobrapy = True
-            except Exception as e:
-                print(e)
-            finally:
-                release_data['cobrapy-yaml-load'] = { cobra.__version__ : is_valid_cobrapy }
-        data[nameWithOwner].append({ release: release_data })
-    print(json.dumps(data, indent=2, sort_keys=True))
+        for standard_version in releases('MetabolicAtlas/standard-GEM'):
+            print("Release: {} | Standard: {}".format(model_release, standard_version))
+            is_standard = gem_follows_standard(nameWithOwner, model_release, standard_version)
+            tests = {}
+            if is_standard:
+                response = requests.get('https://raw.githubusercontent.com/{}/{}/model/{}.yml'.format(nameWithOwner, model_release, model))
+                with open(model_filename, 'w') as file:
+                    file.write(response.text)
+
+                print('  validate YAML with yamllint')
+                is_valid_yaml = False
+                try:
+                    conf = YamlLintConfig('{extends: default, rules: {line-length: disable}}')
+                    with open(model_filename, 'r') as file:
+                        gen = yamllint.linter.run(file, conf)
+                    is_valid_yaml = len(list(gen)) == 0
+                except Exception as e:
+                    print(e)
+                finally:
+                    tests['yamllint'] = { yamllint.__version__ : is_valid_yaml }
+
+                print('  load yml with cobrapy')
+                is_valid_cobrapy = False
+                try:
+                    cobra.io.load_yaml_model(model_filename)
+                    is_valid_cobrapy = True
+                except Exception as e:
+                    print(e)
+                finally:
+                    tests['cobrapy-yaml-load'] = { cobra.__version__ : is_valid_cobrapy }
+            release_data = { 'standard-GEM' : [ { standard_version : is_standard }, { 'tests' : tests} ] }
+        data[nameWithOwner].append({ model_release: release_data })
+    with open('results/{}.json'.format(model), 'w') as output:
+        output.write(json.dumps(data, indent=2, sort_keys=True))
