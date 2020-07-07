@@ -1,7 +1,6 @@
 import requests
 import json
 from os import environ
-from difflib import context_diff
 
 api_endpoint = 'https://api.github.com/graphql'
 api_token = environ['GH_TOKEN']
@@ -36,12 +35,55 @@ def matrix():
     matrix_json = {"include": m }
     print(json.dumps(matrix_json))
 
-def valid():
-    repo_standard = requests.get('https://raw.githubusercontent.com/{}/standardizeRepo/.standard-GEM.md'.format('SysBioChalmers/Human-GEM'))
+def gem_follows_standard(nameWithOwner, release, version):
+    repo_standard = requests.get('https://raw.githubusercontent.com/{}/standardizeRepo/.standard-GEM.md'.format(nameWithOwner, release))
     if repo_standard.status_code ==  404:
-        print('gem is missing standard file')
+        return False
     repo_standard = repo_standard.text
-    raw_standard = requests.get('https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/{}/.standard-GEM.md'.format('develop')).text
-    print(raw_standard)
-    for line in context_diff(repo_standard, raw_standard):
-        print(line)
+    raw_standard = requests.get('https://raw.githubusercontent.com/MetabolicAtlas/standard-GEM/{}/.standard-GEM.md'.format(version)).text
+    import difflib
+    the_diff = difflib.ndiff(repo_standard, raw_standard)
+    return True
+
+def validate(nameWithOwner, version):
+    model_filename = 'model.yml'
+    data = {}
+    data[nameWithOwner] = []
+    for release in releases(nameWithOwner):
+        release_data = {}
+        is_standard = gem_follows_standard(nameWithOwner, version)
+        release_data['standard-GEM'] = { version : is_standard }
+        if is_standard:
+            model = nameWithOwner.split('/')[1]
+            response = requests.get('https://raw.githubusercontent.com/{}/{}/model/{}.yml'.format(nameWithOwner, release, model))
+            with open(model_filename, 'w') as file:
+                file.write(response.text)
+            print('Validating YAML with yamllint')
+            # yamllint
+            is_valid_yaml = False
+            try:
+                import yamllint
+                from yamllint.config import YamlLintConfig
+                conf = YamlLintConfig('{extends: default, rules: {line-length: disable}}')
+                with open(model_filename, 'r') as file:
+                    gen = yamllint.linter.run(file, conf)
+                    print(list(gen))
+                is_valid_yaml = len(list(gen)) == 0
+            except Exception as e:
+                print(e)
+            finally:
+                release_data['yamllint'] = { yamllint.__version__ : is_valid_yaml }
+            # cobrapy import
+            print('Trying to load yml with cobrapy')
+            is_valid_cobrapy = False
+            try:
+                import cobra
+                cobra.io.load_yaml_model(model_filename)
+                is_valid_cobrapy = True
+            except Exception as e:
+                print(e)
+            finally:
+                release_data['cobrapy-yaml-load'] = { cobra.__version__ : is_valid_cobrapy }
+
+    data[nameWithOwner].append(release_data)
+    print(json.dumps(data, indent=4, sort_keys=True))
