@@ -36,7 +36,7 @@ def matrix():
     print(json.dumps(matrix_json))
 
 def gem_follows_standard(nameWithOwner, release, version):
-    repo_standard = requests.get('https://raw.githubusercontent.com/{}/standardizeRepo/.standard-GEM.md'.format(nameWithOwner, release))
+    repo_standard = requests.get('https://raw.githubusercontent.com/{}/{}/.standard-GEM.md'.format(nameWithOwner, release))
     if repo_standard.status_code ==  404:
         return False
     repo_standard = repo_standard.text
@@ -51,7 +51,7 @@ def validate(nameWithOwner, version):
     data[nameWithOwner] = []
     for release in releases(nameWithOwner):
         release_data = {}
-        is_standard = gem_follows_standard(nameWithOwner, version)
+        is_standard = gem_follows_standard(nameWithOwner, release, version)
         release_data['standard-GEM'] = { version : is_standard }
         if is_standard:
             model = nameWithOwner.split('/')[1]
@@ -84,6 +84,5 @@ def validate(nameWithOwner, version):
                 print(e)
             finally:
                 release_data['cobrapy-yaml-load'] = { cobra.__version__ : is_valid_cobrapy }
-
-    data[nameWithOwner].append(release_data)
-    print(json.dumps(data, indent=4, sort_keys=True))
+        data[nameWithOwner].append({ release: release_data })
+    print(json.dumps(data, indent=2, sort_keys=True))
