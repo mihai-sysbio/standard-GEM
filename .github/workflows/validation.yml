@@ -73,11 +73,16 @@ jobs:
       run: |
         python -c 'import gh_api; gh_api.validate("${{ matrix.gem }}")'
 
-    - name: Auto-commit results
-      uses: stefanzweifel/git-auto-commit-action@v2.5.0
+    - name: Checkout repository
+      uses: actions/checkout@v2
       with:
-        commit_message: update results
-        branch: automated-validation
-        file_pattern: results/\*.json
+        fetch-depth: 1
+
+    - name: Auto-commit results
+      uses: stefanzweifel/git-auto-commit-action@v4.4.0
+      with:
+        commit_user_name: validation-bot
+        commit_message: update validation results for ${{ matrix.gem }}
+        file_pattern: results/*.json
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

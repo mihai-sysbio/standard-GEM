@@ -11,11 +11,16 @@ header_auth = {'Authorization': 'token %s' % api_token}
 model_filename = 'model.yml'
 
 def gem_repositories():
-    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"topic:standard-GEM\"\"\", first: 100) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
+    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"topic:standard-GEM\"\"\", first: 100) { repos: edges { repo: node { ... on Repository { nameWithOwner forks(first: 100) { fork: nodes { nameWithOwner } } } } } } }" }
     r = requests.post(url=api_endpoint, json=json_request, headers=header_auth)
-    json_data = json.loads(r.text)['data']['search']['repos']
-    gem_repositories = map(lambda x: x['repo']['nameWithOwner'], json_data)
-    filtered_repositories = filter(lambda x: 'standard-GEM' not in x, gem_repositories)
+    filtered_repositories = []
+    for repo in json.loads(r.text)['data']['search']['repos']:
+        repo = repo['repo']
+        nameWithOwner = repo['nameWithOwner']
+        if 'standard-GEM' not in nameWithOwner:
+            filtered_repositories.append(nameWithOwner)
+            for fork in repo['forks']['fork']:
+                filtered_repositories.append(fork['nameWithOwner'])
     return filtered_repositories
 
 def releases(nameWithOwner):
@@ -43,7 +48,7 @@ def gem_follows_standard(nameWithOwner, release, version):
     return True
 
 def validate(nameWithOwner):
-    model = nameWithOwner.split('/')[1]
+    owner, model = nameWithOwner.split('/')
     data = {}
     data[nameWithOwner] = []
     for model_release in releases(nameWithOwner):
@@ -80,5 +85,5 @@ def validate(nameWithOwner):
                     tests['cobrapy-yaml-load'] = { cobra.__version__ : is_valid_cobrapy }
             release_data = { 'standard-GEM' : [ { standard_version : is_standard }, { 'tests' : tests} ] }
         data[nameWithOwner].append({ model_release: release_data })
-    with open('results/{}.json'.format(model), 'w') as output:
+    with open('results/{}_{}.json'.format(owner, model), 'w') as output:
         output.write(json.dumps(data, indent=2, sort_keys=True))
