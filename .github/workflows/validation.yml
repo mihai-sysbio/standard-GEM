@@ -70,18 +70,10 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Validate repository
-      run: |
-        python -c 'import gh_api; gh_api.validate("${{ matrix.gem }}")'
+      run: python -c 'import gh_api; gh_api.validate("${{ matrix.gem }}")'
 
-    - name: Status
-      run: |
-        ls results/
-        cat results/*.json
-
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
+    - name: Update branch
+      run: git pull
 
     - name: Auto-commit results
       uses: stefanzweifel/git-auto-commit-action@v4.4.0
