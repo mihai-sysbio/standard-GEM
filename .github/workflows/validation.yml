@@ -73,6 +73,11 @@ jobs:
       run: |
         python -c 'import gh_api; gh_api.validate("${{ matrix.gem }}")'
 
+    - name: Status
+      run: |
+        ls results/
+        cat results/*.json
+
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
