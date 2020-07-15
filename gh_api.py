@@ -11,7 +11,7 @@ header_auth = {'Authorization': 'token %s' % api_token}
 model_filename = 'model.yml'
 
 def gem_repositories():
-    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"fork: true topic:standard-GEM\"\"\", first: 100) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
+    json_request = {"query" : "{ search(type: REPOSITORY, query: \"\"\"fork:true topic:standard-GEM\"\"\", first: 100) { repos: edges { repo: node { ... on Repository { nameWithOwner } } } } }" }
     r = requests.post(url=api_endpoint, json=json_request, headers=header_auth)
     json_data = json.loads(r.text)['data']['search']['repos']
     gem_repositories = map(lambda x: x['repo']['nameWithOwner'], json_data)
